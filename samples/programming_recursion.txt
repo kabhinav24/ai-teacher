@@ -1,0 +1,13 @@
+Chapter 6: Recursion
+
+6.1 What Recursion Is
+A recursive function is a function that calls itself to solve a smaller version of the same problem. Every recursive function needs a base case that stops the recursion and a recursive case that moves toward the base case.
+
+6.2 A Worked Example
+The factorial of n is the product of all positive integers up to n. In Python this can be written as a recursive function where factorial of zero returns one, and factorial of n returns n multiplied by factorial of n minus one.
+
+6.3 The Call Stack
+Each recursive call adds a frame to the call stack. The frames are only removed once the base case is reached and the results unwind back up. If the base case is never reached, the stack overflows and the program raises a recursion error.
+
+6.4 Recursion Versus Iteration
+Any recursive solution can be rewritten iteratively using an explicit stack. Recursion is usually clearer for problems that are naturally defined in terms of themselves, such as tree traversal, while iteration avoids the overhead of stack frames.

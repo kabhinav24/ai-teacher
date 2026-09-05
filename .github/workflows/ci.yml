@@ -1,0 +1,231 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch — video rendering is slow and
+# there's no point finishing a run for a commit that's already been replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The whole suite runs against the offline providers, so CI needs no secrets.
+  LLM_PROVIDER: echo
+  EMBEDDING_PROVIDER: hashing
+  TTS_PROVIDER: silent
+  AVATAR_PROVIDER: static
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest tests/ --cov=backend --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  lint:
+    name: Lint (advisory)
+    runs-on: ubuntu-latest
+    # Style findings annotate the PR but never block a pipeline that proves the
+    # software actually works. Run `ruff check --fix` locally to clear them.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.6.4
+      - run: ruff check backend tests scripts --output-format=github
+
+  pipeline:
+    name: End-to-end lesson and video
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system media dependencies
+        run: |
+          sudo apt-get update
+          # fonts-indic is what stops Hindi and Tamil boards rendering as
+          # empty boxes; ffmpeg composes the video.
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fonts-indic
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Teach a lesson end to end and render the video
+        run: |
+          python scripts/demo.py \
+            --file samples/physics_chapter4.txt \
+            --section "4.3" \
+            --minutes 5 \
+            --language en \
+            --video \
+            --answers "current increases" "it decreases" "b" "b" "b"
+
+      - name: Verify the video is a real playable file
+        run: |
+          VIDEO=data/media/cli-demo/lesson.mp4
+          test -f "$VIDEO" || { echo "::error::no lesson.mp4 was produced"; exit 1; }
+          test -f data/media/cli-demo/lesson.srt || { echo "::error::no subtitle track"; exit 1; }
+          test -f data/media/cli-demo/chapters.json || { echo "::error::no chapter markers"; exit 1; }
+
+          # A file that exists but has no video stream or zero duration is the
+          # failure this check is really guarding against.
+          CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$VIDEO")
+          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO")
+          echo "codec=$CODEC duration=${DURATION}s"
+          [ "$CODEC" = "h264" ] || { echo "::error::expected h264, got '$CODEC'"; exit 1; }
+          awk -v d="$DURATION" 'BEGIN { exit (d > 1) ? 0 : 1 }' \
+            || { echo "::error::video duration is ${DURATION}s"; exit 1; }
+
+      - name: Upload the generated lesson
+        uses: actions/upload-artifact@v4
+        with:
+          name: lesson-video
+          path: |
+            data/media/cli-demo/lesson.mp4
+            data/media/cli-demo/lesson.srt
+            data/media/cli-demo/chapters.json
+          retention-days: 14
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Cached manually rather than via setup-node's `cache: npm`, which hard
+      # fails when package-lock.json is absent — and it is until the first
+      # `npm install` is committed.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('frontend/package.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Install and build
+        working-directory: frontend
+        # npm ci needs a lockfile; fall back to install so the first run works
+        # before package-lock.json has been committed.
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+          npm run build
+
+      - name: Upload built frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        # Only push from the default branch; pull requests build but don't publish.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build once into the local daemon so the smoke test runs against the
+      # exact image that gets pushed, instead of rebuilding it twice.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ai-teacher:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker run --rm -d -p 8000:8000 --name ai-teacher-test \
+            -e LLM_PROVIDER=echo -e EMBEDDING_PROVIDER=hashing ai-teacher:test
+
+          # Give uvicorn a moment, then confirm the app actually serves.
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health > /dev/null 2>&1; then
+              echo "API is up after ${i}s"
+              curl -fsS http://localhost:8000/health
+              curl -fsS http://localhost:8000/api/config
+              docker stop ai-teacher-test
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::the container never became healthy"
+          docker logs ai-teacher-test
+          docker stop ai-teacher-test
+          exit 1
+
+      - name: Push to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha

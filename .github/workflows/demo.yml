@@ -1,0 +1,107 @@
+name: Generate demo lesson
+
+# Renders a real teaching video with real providers and attaches it to the run.
+# Useful for producing the submission demo, and for checking that a change
+# hasn't broken output quality in a way the offline stubs can't catch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Topic to teach"
+        required: true
+        default: "Ohm's Law"
+      minutes:
+        description: "Lesson length in minutes"
+        required: true
+        default: "5"
+      language:
+        description: "Teaching language (en, hi, hinglish, ta, bn, ...)"
+        required: true
+        default: "hi"
+      level:
+        description: "Learner level"
+        required: true
+        default: "beginner"
+        type: choice
+        options: [beginner, intermediate, advanced]
+
+jobs:
+  render:
+    name: Teach and record
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system media dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg fonts-noto-core fonts-noto-cjk fonts-indic espeak-ng
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Render the lesson
+        env:
+          # edge-tts is free and needs no key, so only the model key is a secret.
+          LLM_PROVIDER: anthropic
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          EMBEDDING_PROVIDER: hashing
+          TTS_PROVIDER: edge
+          AVATAR_PROVIDER: static
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "::warning::No LLM_API_KEY secret set — falling back to the offline stub provider."
+            echo "LLM_PROVIDER=echo" >> "$GITHUB_ENV"
+          fi
+          python scripts/demo.py \
+            --topic "${{ inputs.topic }}" \
+            --minutes "${{ inputs.minutes }}" \
+            --language "${{ inputs.language }}" \
+            --level "${{ inputs.level }}" \
+            --video | tee lesson-transcript.txt
+
+      - name: Summarise the run
+        if: always()
+        run: |
+          {
+            echo "## Lesson: ${{ inputs.topic }}"
+            echo ""
+            echo "| Setting | Value |"
+            echo "|---|---|"
+            echo "| Language | ${{ inputs.language }} |"
+            echo "| Level | ${{ inputs.level }} |"
+            echo "| Requested | ${{ inputs.minutes }} min |"
+            if [ -f data/media/cli-demo/lesson.mp4 ]; then
+              DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 data/media/cli-demo/lesson.mp4)
+              echo "| Rendered | ${DUR}s |"
+            fi
+            echo ""
+            echo "### Why the teacher did what it did"
+            echo '```'
+            sed -n '/WHY THE TEACHER DID WHAT IT DID/,$p' lesson-transcript.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the lesson
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-lesson-${{ inputs.language }}
+          path: |
+            data/media/cli-demo/lesson.mp4
+            data/media/cli-demo/lesson.srt
+            data/media/cli-demo/chapters.json
+            lesson-transcript.txt
+          retention-days: 30

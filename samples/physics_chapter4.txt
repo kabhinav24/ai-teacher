@@ -1,0 +1,13 @@
+Chapter 4: Electricity
+
+4.1 Electric Current
+Electric current is the rate of flow of electric charge through a conductor. It is measured in amperes (A). One ampere equals one coulomb of charge passing a point per second. Conventional current flows from the positive terminal to the negative terminal of a cell.
+
+4.2 Potential Difference
+Potential difference between two points is the work done to move a unit charge from one point to the other. It is measured in volts (V). A voltmeter is connected in parallel across the component being measured.
+
+4.3 Ohm's Law
+Ohm's Law states that the current through a conductor is directly proportional to the potential difference across it, provided the temperature remains constant. This gives V = I R, where R is the resistance of the conductor. Resistance is measured in ohms. If resistance increases while voltage is held constant, the current decreases.
+
+4.4 Resistors in Series and Parallel
+When resistors are connected in series, the equivalent resistance is the sum of the individual resistances. When connected in parallel, the reciprocal of the equivalent resistance equals the sum of the reciprocals of the individual resistances. Parallel connection therefore reduces total resistance.

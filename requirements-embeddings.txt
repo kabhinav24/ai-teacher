@@ -1,0 +1,10 @@
+# Optional: trained multilingual embeddings.
+#
+# Without this, EMBEDDING_PROVIDER falls back to hashed character n-grams,
+# which works but has no cross-lingual signal — a Hindi query will not retrieve
+# well from an English textbook. Install this for real multilingual RAG.
+#
+# Pulls PyTorch, so expect ~2GB and a few minutes.
+
+-r requirements.txt
+sentence-transformers==3.1.0

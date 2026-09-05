@@ -1,0 +1,38 @@
+# Core dependencies. Everything here is small and fast to install, and the app
+# is fully functional with just this set — heavier optional providers live in
+# the separate requirements-*.txt files below.
+#
+#   pip install -r requirements.txt                  # core, ~30s
+#   pip install -r requirements-embeddings.txt       # better multilingual RAG (pulls torch)
+#   pip install -r requirements-dev.txt              # tests and linting
+
+# --- api ----------------------------------------------------------------
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.0
+python-multipart==0.0.9
+sqlalchemy==2.0.34
+httpx==0.27.2
+
+# --- document ingestion -------------------------------------------------
+pypdf==5.0.0
+python-docx==1.1.2
+python-pptx==1.0.2
+beautifulsoup4==4.12.3
+EbookLib==0.18
+
+# --- retrieval and rendering --------------------------------------------
+numpy==2.1.1
+matplotlib==3.9.2               # board rendering
+
+# --- voice --------------------------------------------------------------
+edge-tts==6.1.12                # free multilingual TTS, good Indian voices
+gTTS==2.5.3                     # fallback
+
+# --- model provider (pick one; anthropic is the default) ----------------
+anthropic==0.34.2
+# openai==1.44.0
+# elevenlabs==1.9.0
+
+# --- speech-to-text (optional: lets students answer out loud) -----------
+faster-whisper==1.0.3
