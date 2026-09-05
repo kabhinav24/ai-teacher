@@ -8,9 +8,9 @@ that state so the LLM is used for language, not for bookkeeping.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable
 
 
 class Level(str, Enum):

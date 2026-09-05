@@ -476,7 +476,7 @@ class TeachingSession:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TeachingSession":
+    def from_dict(cls, data: dict) -> TeachingSession:
         from backend.agents.pedagogy import Strategy
 
         s = cls(data["plan"], data["profile"], doc_id=data.get("doc_id"))

@@ -85,7 +85,7 @@ class HashingEmbedder(Embedder):
         text = text.lower()
         words = re.findall(r"\w+", text)
         feats = list(words)
-        feats += [f"{a}_{b}" for a, b in zip(words, words[1:])]
+        feats += [f"{a}_{b}" for a, b in zip(words, words[1:], strict=False)]
         for w in words:
             if len(w) > 4:
                 feats += [w[i : i + 4] for i in range(len(w) - 3)]

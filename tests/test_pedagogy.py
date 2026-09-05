@@ -3,8 +3,17 @@ decides is downstream of it."""
 import pytest
 
 from backend.agents.pedagogy import (
-    BKTParams, ConceptState, Level, Strategy, budget, difficulty_for,
-    next_strategy, observe, readiness_score, remediation_for, words_for_seconds,
+    BKTParams,
+    ConceptState,
+    Level,
+    Strategy,
+    budget,
+    difficulty_for,
+    next_strategy,
+    observe,
+    readiness_score,
+    remediation_for,
+    words_for_seconds,
 )
 
 

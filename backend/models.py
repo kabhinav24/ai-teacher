@@ -7,7 +7,7 @@ skip what a student already owns and revisit what they never fixed.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,7 +20,7 @@ def _uid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Student(Base):
@@ -32,8 +32,8 @@ class Student(Base):
     preferred_language: Mapped[str] = mapped_column(String(20), default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    sessions: Mapped[list["LessonSession"]] = relationship(back_populates="student", cascade="all, delete-orphan")
-    concepts: Mapped[list["ConceptRecord"]] = relationship(back_populates="student", cascade="all, delete-orphan")
+    sessions: Mapped[list[LessonSession]] = relationship(back_populates="student", cascade="all, delete-orphan")
+    concepts: Mapped[list[ConceptRecord]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
 
 class Document(Base):

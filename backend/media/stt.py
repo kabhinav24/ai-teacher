@@ -69,7 +69,6 @@ def transcribe(audio_path: Path, *, lang: str = "en") -> Transcript:
 
 
 def _faster_whisper(wav: Path, lang: str) -> Transcript:
-    from faster_whisper import WhisperModel
 
     model_name = settings.stt.model or "small"
     model = _cached_model(model_name)

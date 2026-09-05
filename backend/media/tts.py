@@ -208,7 +208,7 @@ def _estimate_timings(text: str, duration: float) -> list[dict]:
     weights = [max(len(w), 2) for w in words]
     total = sum(weights)
     timings, t = [], 0.0
-    for w, weight in zip(words, weights):
+    for w, weight in zip(words, weights, strict=False):
         span = duration * weight / total
         timings.append({"word": w, "start": round(t, 3), "end": round(t + span, 3)})
         t += span

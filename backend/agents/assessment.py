@@ -6,7 +6,7 @@ import logging
 import re
 from difflib import SequenceMatcher
 
-from backend.agents.pedagogy import ConceptState, MISCONCEPTION_PLAYBOOK
+from backend.agents.pedagogy import MISCONCEPTION_PLAYBOOK, ConceptState
 from backend.core import prompts
 from backend.core.llm import complete_json
 

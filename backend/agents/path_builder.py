@@ -1,7 +1,6 @@
 """Learning paths for broad topics, and next-step selection within one."""
 from __future__ import annotations
 
-
 from backend.core import prompts
 from backend.core.llm import complete_json
 

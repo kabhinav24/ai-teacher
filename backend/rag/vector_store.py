@@ -77,7 +77,7 @@ class VectorStore:
         self._bm25: BM25 | None = None
 
     # -- build ------------------------------------------------------------
-    def build(self, chunks: list[Chunk]) -> "VectorStore":
+    def build(self, chunks: list[Chunk]) -> VectorStore:
         self.chunks = chunks
         texts = [c.for_embedding() for c in chunks]
         self.vectors = get_embedder().encode(texts) if texts else np.zeros((0, 1), dtype=np.float32)
@@ -94,7 +94,7 @@ class VectorStore:
             pickle.dump(self._bm25, fh)
 
     @classmethod
-    def load(cls, doc_id: str) -> "VectorStore":
+    def load(cls, doc_id: str) -> VectorStore:
         store = cls(doc_id)
         chunk_file = store.dir / "chunks.json"
         if not chunk_file.exists():
